@@ -3,7 +3,12 @@ const gulp  =   require('gulp'),
     del     =   require('del'),
     server  =   require('gulp-webserver'),
     watch   =   require('gulp-watch'),
-    uglify  =   require('gulp-uglifyes')
+    uglify  =   require('gulp-uglifyes'),
+    ts      =   require('gulp-typescript'),
+    concat  =   require('gulp-concat'),
+    browserify  =   require("browserify"),
+    tsify   =   require("tsify"),
+    source  =   require("vinyl-source-stream")
 ;
 
 const path = {
@@ -12,7 +17,7 @@ const path = {
             'src/templates/index.html',
         ],
         js: [
-            'src/js/main.js'
+            'src/js/main.ts',
         ],
         css: [
             'src/css/main.css'
@@ -23,11 +28,10 @@ const path = {
     },
     watch: {
         html: 'src/templates/index.html',
-        js: 'src/js/main.js',
+        js: ['src/js/main.ts','src/js/classes/*.ts'],
         css: 'src/css/main.css',
     }
 };
-
 
 gulp.task('html', function() {
     return gulp.src(path.src.html) // указываем пути к файлам .html
@@ -40,14 +44,21 @@ gulp.task('html', function() {
 
 
 gulp.task('js', function() {
-    return gulp.src(path.src.js)
-        .pipe(uglify())
-        .pipe(gulp.dest('bin'));
+    return browserify({
+        basedir: ".",
+        debug: true,
+        entries: path.src.js,
+        cache: {},
+        packageCache: {},
+    })
+        .plugin(tsify)
+        .bundle()
+        .pipe(source("main.js"))
+        .pipe(gulp.dest("bin"));
 });
 
 gulp.task('css', function() {
     return gulp.src(path.src.css)
-        .pipe(uglify())
         .pipe(gulp.dest('bin'));
 });
 
@@ -64,19 +75,17 @@ gulp.task('webserver', function() {
         }));
 });
 
-
-gulp.task('watch', function () {
-
-});
+gulp.task('build', gulp.series([
+    'clean',
+    'html',
+    'css',
+    'js',
+]));
 
 watch(path.watch.html, gulp.series('html'));
 watch(path.watch.js, gulp.series('js'));
 watch(path.watch.css, gulp.series('css'));
 
-gulp.task('build', gulp.series([
-    'clean',
-    'html',
-    'js',
-]));
+gulp.task('default', gulp.series(['build','webserver']),function () {
 
-gulp.task('default', gulp.series(['build','webserver','watch']));
+});
